@@ -2,12 +2,10 @@ pipeline {
     agent any
 
     environment {
-        STAGE_IMAGE = 'springboot-ci-demo'
-        STAGE_CONTAINER = 'springboot-ci-staging'
-        STAGE_PORT = '8086'
-
-        PROD_IMAGE = 'springboot-ci-prod'
-        PROD_CONTAINER = 'springboot-ci-production'
+        IMAGE_NAME = 'springboot-ci-demo'
+        STAGING_CONTAINER = 'staging-container'
+        PROD_CONTAINER = 'prod-container'
+        STAGING_PORT = '8086'
         PROD_PORT = '9090'
     }
 
@@ -30,37 +28,35 @@ pipeline {
             }
         }
 
-        stage('Deploy Staging') {
+        stage('Deploy to Staging') {
             steps {
                 sh '''
-                    docker stop $STAGE_CONTAINER || true
-                    docker rm $STAGE_CONTAINER || true
-                    docker build -t $STAGE_IMAGE .
-                    docker run -d -p $STAGE_PORT:8080 --name $STAGE_CONTAINER $STAGE_IMAGE
-                    sleep 10
+                    docker stop $STAGING_CONTAINER || true
+                    docker rm $STAGING_CONTAINER || true
+                    docker build -t $IMAGE_NAME .
+                    docker run -d -p $STAGING_PORT:8080 --name $STAGING_CONTAINER $IMAGE_NAME
                 '''
             }
         }
 
-        stage('E2E Test with Playwright') {
+        stage('Run Playwright Tests') {
             steps {
                 dir('spring-hello/playwright-tests') {
                     sh '''
                         npm ci
-                        npx playwright install
+                        npx playwright install --with-deps
                         npm test
                     '''
                 }
             }
         }
 
-        stage('Deploy Production') {
+        stage('Deploy to Production') {
             steps {
                 sh '''
                     docker stop $PROD_CONTAINER || true
                     docker rm $PROD_CONTAINER || true
-                    docker build -t $PROD_IMAGE .
-                    docker run -d -p $PROD_PORT:8080 --name $PROD_CONTAINER $PROD_IMAGE
+                    docker run -d -p $PROD_PORT:8080 --name $PROD_CONTAINER $IMAGE_NAME
                 '''
             }
         }
